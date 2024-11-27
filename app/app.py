@@ -85,8 +85,9 @@ with ui.layout_columns():
             )
 
     with ui.card(full_screen=True):
-        ui.card_header("Penguin da")
-
+        ui.card_header("Penguin Data")
+# Fixed Type from da to Data
+        
         @render.data_frame
         def summary_statistics():
             cols = [
