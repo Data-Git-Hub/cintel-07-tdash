@@ -1,8 +1,24 @@
 from shiny import App, ui
+import palmerpenguins
+
+# Load the Palmer Penguins dataset into a DataFrame
+df = palmerpenguins.load_penguins()
 
 app_ui = ui.page_fillable(
     ui.layout_sidebar(
-        ui.sidebar("Sidebar", bg="#f8f8f8"),
+        ui.sidebar(
+            # Sidebar layout for input controls
+            ui.input_slider("mass", "Mass", 2000, 6000, 6000),
+            ui.hr(),  # Horizontal rule for separating sections
+            ui.input_checkbox_group(
+                "species",
+                "Species",
+                ["Adelie", "Gentoo", "Chinstrap"],  # Available species
+                selected=["Adelie", "Gentoo", "Chinstrap"],  # Default selection
+            ),
+            title="Filter controls",  # Title for the sidebar
+            bg="#f8f8f8",  # Background color for the sidebar
+        ),
         ui.card(
             ui.card_header("Penguin Dashboard"),
             ui.navset_tab(
