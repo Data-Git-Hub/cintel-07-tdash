@@ -24,7 +24,15 @@ app_ui = ui.page_fillable(
         ui.card(
             ui.card_header("Penguin Dashboard"),
             ui.navset_tab(
-                ui.nav_panel("A", "Panel A content"),
+                ui.nav_panel(
+                    "A",
+                    ui.layout_columns(
+                        ui.card("Card 1"),
+                        ui.card("Card 2"),
+                        ui.card("Card 3"),
+                        col_widths=(4, 4, 4),  # Equally distributed column widths
+                    ),
+                ),
                 ui.nav_panel(
                     "B",
                     ui.layout_columns(
