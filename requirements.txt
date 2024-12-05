@@ -1,6 +1,9 @@
-faicons
 shiny
-shinylive
-seaborn
-pandas
+shinywidgets
 palmerpenguins
+altair
+seaborn
+anywidget
+matplotlib
+plotly
+kaleido
