@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import io
 from base64 import b64encode
 import seaborn as sns
+import plotly.express as px
 
 # Load the Palmer Penguins dataset into a DataFrame
 df = palmerpenguins.load_penguins()
@@ -55,7 +56,18 @@ app_ui = ui.page_fillable(
                         ui.output_ui("hist_plot"),
                     ),
                 ),
-                ui.nav_panel("D", "Panel D content"),
+                ui.nav_panel(
+                    "D",
+                    ui.card(
+                        ui.card_header("Plotly Histogram"),
+                        ui.input_selectize(
+                            "plotly_var",
+                            "Select variable",
+                            choices=["bill_length_mm", "body_mass_g"],
+                        ),
+                        ui.output_ui("plotly_hist"),
+                    ),
+                ),
                 ui.nav_panel("E", "Panel E content"),
                 ui.nav_panel(
                     "F",
@@ -119,6 +131,7 @@ app_ui = ui.page_fillable(
     )
 )
 
+
 # Server logic
 def server(input, output, session):
     # Reactive filtered DataFrame
@@ -170,6 +183,21 @@ def server(input, output, session):
         # Return the image as an HTML img tag
         return ui.HTML(f'<img src="data:image/png;base64,{img_b64}" alt="Histogram">')
 
+    # Render Plotly histogram for Tab "D"
+    @output
+    @render.ui
+    def plotly_hist():
+        var = input.plotly_var()
+        fig = px.histogram(
+            filtered_df(),
+            x=var,
+            color="species",
+            title=f"Plotly Histogram of {var}",
+            barmode="group",
+        )
+        # Convert Plotly figure to HTML
+        return ui.HTML(fig.to_html(full_html=False))
+
     # Render data table for Tab "F"
     @output
     @render.data_frame
@@ -182,6 +210,7 @@ def server(input, output, session):
             "body_mass_g",
         ]
         return filtered_df()[cols]
+
 
 # Create and run the app
 app = App(app_ui, server)
