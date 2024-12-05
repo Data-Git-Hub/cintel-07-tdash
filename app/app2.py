@@ -1,25 +1,25 @@
 from shiny import App, ui, render, reactive
 import palmerpenguins
-import seaborn as sns  # Import Seaborn for scatter plot generation
-import matplotlib.pyplot as plt  # Required for plot rendering
+import matplotlib.pyplot as plt
+import io
+from base64 import b64encode
+import seaborn as sns
 
 # Load the Palmer Penguins dataset into a DataFrame
 df = palmerpenguins.load_penguins()
 
+# Define the UI layout
 app_ui = ui.page_fillable(
     ui.layout_sidebar(
         ui.sidebar(
-            # Sidebar layout for input controls
             ui.input_slider("mass", "Mass", 2000, 6000, 6000),
-            ui.hr(),  # Horizontal rule for separating sections
+            ui.hr(),
             ui.input_checkbox_group(
                 "species",
                 "Species",
-                ["Adelie", "Gentoo", "Chinstrap"],  # Available species
-                selected=["Adelie", "Gentoo", "Chinstrap"],  # Default selection
+                ["Adelie", "Gentoo", "Chinstrap"],
+                selected=["Adelie", "Gentoo", "Chinstrap"],
             ),
-            title="Filter controls",  # Title for the sidebar
-            bg="#f8f8f8",  # Background color for the sidebar
         ),
         ui.card(
             ui.card_header("Penguin Dashboard"),
@@ -30,32 +30,38 @@ app_ui = ui.page_fillable(
                         ui.card("Card 1"),
                         ui.card("Card 2"),
                         ui.card("Card 3"),
-                        col_widths=(4, 4, 4),  # Equally distributed column widths
+                        col_widths=(4, 4, 4),
                     ),
                 ),
                 ui.nav_panel(
                     "B",
                     ui.layout_columns(
-                        # Correct argument order: Positional arguments before keyword arguments
                         ui.card(
                             ui.card_header("Bill length and depth"),
-                            ui.output_plot(
-                                "length_depth_plot"
-                            ),  # Placeholder for the plot
-                            full_screen=True,  # Keyword argument comes last
+                            ui.output_plot("length_depth_plot"),
+                            full_screen=True,
                         )
                     ),
                 ),
-                ui.nav_panel("C", "Panel C content"),
+                ui.nav_panel(
+                    "C",
+                    ui.card(
+                        ui.card_header("Histogram"),
+                        ui.input_selectize(
+                            "var",
+                            "Select variable",
+                            choices=["bill_length_mm", "bill_depth_mm", "body_mass_g"],
+                        ),
+                        ui.output_ui("hist_plot"),
+                    ),
+                ),
                 ui.nav_panel("D", "Panel D content"),
                 ui.nav_panel("E", "Panel E content"),
                 ui.nav_panel(
                     "F",
                     ui.card(
                         ui.card_header("Penguin Data"),
-                        ui.output_data_frame(
-                            "summary_statistics"
-                        ),  # Placeholder for data table
+                        ui.output_data_frame("summary_statistics"),
                         full_screen=True,
                     ),
                 ),
@@ -107,28 +113,25 @@ app_ui = ui.page_fillable(
                         )
                     ),
                 ),
-                id="tab",  # This is the keyword argument
+                id="tab",
             ),
         ),
     )
 )
 
-
+# Server logic
 def server(input, output, session):
-    # Reactive calculation to filter the dataset based on user input
+    # Reactive filtered DataFrame
     @reactive.Calc
     def filtered_df():
-        # Filter data by selected species
         filt_df = df[df["species"].isin(input.species())]
-        # Further filter data by body mass
         filt_df = filt_df.loc[filt_df["body_mass_g"] < input.mass()]
         return filt_df
 
-    # Render function to generate the scatter plot on Tab "B"
+    # Render scatter plot for Tab "B"
     @output
     @render.plot
     def length_depth_plot():
-        # Generate scatter plot
         plt.figure(figsize=(8, 6))
         sns.scatterplot(
             data=filtered_df(),
@@ -138,9 +141,36 @@ def server(input, output, session):
             palette="muted",
         )
         plt.title("Bill Length vs Depth")
-        return plt.gcf()  # Return the current figure
+        return plt.gcf()
 
-    # Render function to generate the data table on Tab "F"
+    # Render histogram for Tab "C"
+    @output
+    @render.ui
+    def hist_plot():
+        data = filtered_df()
+        var = input.var()
+
+        # Create a Matplotlib figure
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.hist(data[var].dropna(), bins=30, color="skyblue", edgecolor="black")
+        ax.set_title(f"Histogram of {var}")
+        ax.set_xlabel(var)
+        ax.set_ylabel("Frequency")
+
+        # Save the figure to a BytesIO stream
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png")
+        buf.seek(0)
+
+        # Encode the image in base64
+        img_b64 = b64encode(buf.read()).decode("utf-8")
+        buf.close()
+        plt.close(fig)
+
+        # Return the image as an HTML img tag
+        return ui.HTML(f'<img src="data:image/png;base64,{img_b64}" alt="Histogram">')
+
+    # Render data table for Tab "F"
     @output
     @render.data_frame
     def summary_statistics():
@@ -151,8 +181,7 @@ def server(input, output, session):
             "bill_depth_mm",
             "body_mass_g",
         ]
-        # Return the filtered data with specified columns
-        return render.DataGrid(filtered_df()[cols], filters=True)
+        return filtered_df()[cols]
 
-
+# Create and run the app
 app = App(app_ui, server)
