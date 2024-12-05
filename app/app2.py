@@ -1,7 +1,7 @@
-from shiny import App, ui, render
+from shiny import App, ui, render, reactive
 import palmerpenguins
-import seaborn as sns
-import matplotlib.pyplot as plt
+import seaborn as sns  # Import Seaborn for scatter plot generation
+import matplotlib.pyplot as plt  # Required for plot rendering
 
 # Load the Palmer Penguins dataset into a DataFrame
 df = palmerpenguins.load_penguins()
@@ -31,7 +31,9 @@ app_ui = ui.page_fillable(
                         # Correct argument order: Positional arguments before keyword arguments
                         ui.card(
                             ui.card_header("Bill length and depth"),
-                            ui.output_plot("length_depth_plot"),  # Placeholder for the plot
+                            ui.output_plot(
+                                "length_depth_plot"
+                            ),  # Placeholder for the plot
                             full_screen=True,  # Keyword argument comes last
                         )
                     ),
@@ -39,7 +41,16 @@ app_ui = ui.page_fillable(
                 ui.nav_panel("C", "Panel C content"),
                 ui.nav_panel("D", "Panel D content"),
                 ui.nav_panel("E", "Panel E content"),
-                ui.nav_panel("F", "Panel F content"),
+                ui.nav_panel(
+                    "F",
+                    ui.card(
+                        ui.card_header("Penguin Data"),
+                        ui.output_data_frame(
+                            "summary_statistics"
+                        ),  # Placeholder for data table
+                        full_screen=True,
+                    ),
+                ),
                 ui.nav_menu(
                     "Links",
                     ui.nav_control(
@@ -70,21 +81,21 @@ app_ui = ui.page_fillable(
                         ui.a(
                             "PyShiny",
                             href="https://shiny.posit.co/py/",
-                            target="_blank"
+                            target="_blank",
                         )
                     ),
                     ui.nav_control(
                         ui.a(
                             "Template: Basic Dashboard",
                             href="https://shiny.posit.co/py/templates/dashboard/",
-                            target="_blank"
+                            target="_blank",
                         )
                     ),
                     ui.nav_control(
                         ui.a(
                             "See also",
                             href="https://github.com/denisecase/pyshiny-penguins-dashboard-express",
-                            target="_blank"
+                            target="_blank",
                         )
                     ),
                 ),
@@ -96,18 +107,23 @@ app_ui = ui.page_fillable(
 
 
 def server(input, output, session):
+    # Reactive calculation to filter the dataset based on user input
+    @reactive.Calc
+    def filtered_df():
+        # Filter data by selected species
+        filt_df = df[df["species"].isin(input.species())]
+        # Further filter data by body mass
+        filt_df = filt_df.loc[filt_df["body_mass_g"] < input.mass()]
+        return filt_df
+
+    # Render function to generate the scatter plot on Tab "B"
     @output
     @render.plot
     def length_depth_plot():
-        # Filter the DataFrame based on selected species and mass
-        selected_species = input.species()
-        max_mass = input.mass()
-        filtered_df = df[(df['species'].isin(selected_species)) & (df['body_mass_g'] <= max_mass)]
-
         # Generate scatter plot
         plt.figure(figsize=(8, 6))
         sns.scatterplot(
-            data=filtered_df,
+            data=filtered_df(),
             x="bill_length_mm",
             y="bill_depth_mm",
             hue="species",
@@ -115,6 +131,20 @@ def server(input, output, session):
         )
         plt.title("Bill Length vs Depth")
         return plt.gcf()  # Return the current figure
+
+    # Render function to generate the data table on Tab "F"
+    @output
+    @render.data_frame
+    def summary_statistics():
+        cols = [
+            "species",
+            "island",
+            "bill_length_mm",
+            "bill_depth_mm",
+            "body_mass_g",
+        ]
+        # Return the filtered data with specified columns
+        return render.DataGrid(filtered_df()[cols], filters=True)
 
 
 app = App(app_ui, server)
