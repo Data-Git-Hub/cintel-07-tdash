@@ -1,4 +1,5 @@
 from shiny import App, ui, render, reactive
+import pandas as pd  # Import pandas for DataFrame operations
 import palmerpenguins
 import matplotlib.pyplot as plt
 import io
@@ -28,9 +29,24 @@ app_ui = ui.page_fillable(
                 ui.nav_panel(
                     "A",
                     ui.layout_columns(
-                        ui.card("Card 1"),
-                        ui.card("Card 2"),
-                        ui.card("Card 3"),
+                        ui.card(
+                            ui.card_header("Card 1: Number of Penguins"),
+                            ui.output_text(
+                                "penguin_count"
+                            ),  # Output text for number of penguins
+                        ),
+                        ui.card(
+                            ui.card_header("Card 2: Average Bill Length"),
+                            ui.output_text(
+                                "bill_length"
+                            ),  # Output text for average bill length
+                        ),
+                        ui.card(
+                            ui.card_header("Card 3: Average Bill Depth"),
+                            ui.output_text(
+                                "bill_depth"
+                            ),  # Output text for average bill depth
+                        ),
                         col_widths=(4, 4, 4),
                     ),
                 ),
@@ -72,8 +88,8 @@ app_ui = ui.page_fillable(
                 ui.nav_panel(
                     "F",
                     ui.card(
-                        ui.card_header("Penguin Data"),
-                        ui.output_data_frame("summary_statistics"),
+                        ui.card_header("Penguin Data with Filters"),
+                        ui.output_data_frame("penguins_df"),
                         full_screen=True,
                     ),
                 ),
@@ -141,6 +157,30 @@ def server(input, output, session):
         filt_df = filt_df.loc[filt_df["body_mass_g"] < input.mass()]
         return filt_df
 
+    # Render number of penguins for Tab "A" Card 1
+    @output
+    @render.text
+    def penguin_count():
+        return f"Number of penguins: {filtered_df().shape[0]}"
+
+    # Render average bill length for Tab "A" Card 2
+    @output
+    @render.text
+    def bill_length():
+        avg_length = filtered_df()["bill_length_mm"].mean()
+        if pd.isna(avg_length):  # Check if average length is NaN
+            return "Average bill length: No data available"
+        return f"Average bill length: {avg_length:.1f} mm"
+
+    # Render average bill depth for Tab "A" Card 3
+    @output
+    @render.text
+    def bill_depth():
+        avg_depth = filtered_df()["bill_depth_mm"].mean()
+        if pd.isna(avg_depth):  # Check if average depth is NaN
+            return "Average bill depth: No data available"
+        return f"Average bill depth: {avg_depth:.1f} mm"
+
     # Render scatter plot for Tab "B"
     @output
     @render.plot
@@ -198,18 +238,11 @@ def server(input, output, session):
         # Convert Plotly figure to HTML
         return ui.HTML(fig.to_html(full_html=False))
 
-    # Render data table for Tab "F"
+    # Render filterable data table for Tab "F"
     @output
     @render.data_frame
-    def summary_statistics():
-        cols = [
-            "species",
-            "island",
-            "bill_length_mm",
-            "bill_depth_mm",
-            "body_mass_g",
-        ]
-        return filtered_df()[cols]
+    def penguins_df():
+        return render.DataTable(filtered_df(), filters=True)
 
 
 # Create and run the app
